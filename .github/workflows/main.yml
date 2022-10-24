@@ -19,13 +19,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      
-      - name: Login to the Container Registry  
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
           
       - name: Lint with flake8
         run: |
@@ -38,16 +31,14 @@ jobs:
         run: python3 helloworld.py
         
       - name: Build and Tag image (Docker)
-        run: docker build -f ./Dockerfile -t ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }} .
+        run: docker build -f ./Dockerfile -t helloworld-app .
         
       - name: Scan image
         uses: Azure/container-scan@v0
         with:
-          image-name: ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }}
+          image-name: helloworld-app
           severity-threshold: CRITICAL
           run-quality-checks: true
           
       - name: Push image
-        run: docker push ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }}
-        
-        
+        run: docker push helloworld-app
