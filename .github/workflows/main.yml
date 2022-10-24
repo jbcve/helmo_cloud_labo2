@@ -1,4 +1,4 @@
-name: Python package
+name: Python Container
 
 on: [push]
 
@@ -6,30 +6,48 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.7"]
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.7
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.7
+          
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Login to the Container Registry  
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+          
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: PythonTest_HelloWorld
-        run: |
-           python3 helloworld.py
-      - name: DockerBuild
-        run: |
-           docker build -f ./Dockerfile .
+          
+      - name: Hello World! (test)
+        run: python3 helloworld.py
+        
+      - name: Build and Tag image (Docker)
+        run: docker build -f ./Dockerfile -t ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }} .
+        
+      - name: Scan image
+        uses: Azure/container-scan@v0
+        with:
+          image-name: ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }}
+          severity-threshold: CRITICAL
+          run-quality-checks: true
+          
+      - name: Push image
+        run: docker push ${{ secrets.ACR_LOGIN_SERVER }}/hello-world-python:${{ github.run_number }}
+        
+        
